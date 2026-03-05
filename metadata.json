@@ -1,0 +1,5 @@
+{
+  "name": "CityPulse AI",
+  "description": "AI-powered civic analytics platform for real-time city intelligence and complaint analysis.",
+  "requestFramePermissions": ["geolocation"]
+}
