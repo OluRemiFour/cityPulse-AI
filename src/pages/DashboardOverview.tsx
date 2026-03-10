@@ -1,266 +1,225 @@
-import React from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  AlertTriangle, 
-  Clock, 
-  MapPin, 
-  Lightbulb,
-  ArrowUpRight,
-  Activity,
-  Layers
-} from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Legend,
-  AreaChart,
-  Area
+import { useEffect, useState } from 'react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { STATS, TREND_DATA, MOCK_COMPLAINTS, AI_INSIGHTS } from '../data/mockData';
-import { HotspotMap } from '../components/HotspotMap';
-import { cn } from '../utils/cn';
-import { motion } from 'motion/react';
+import { AlertTriangle, TrendingUp, MapPin, Activity, CheckCircle, AlertCircle, ArrowUpRight, Zap, Shield, Clock } from 'lucide-react';
+import { api, type StatsResponse } from '../api/client';
 
-export const DashboardOverview: React.FC = () => {
+const CATEGORY_COLORS: Record<string, string> = {
+  'Road Infrastructure':  '#6366f1',
+  'Waste Management':     '#22c55e',
+  'Water & Sewage':       '#3b82f6',
+  'Street Lighting':      '#f59e0b',
+  'Parks & Recreation':   '#ec4899',
+  'Public Safety':        '#ef4444',
+  'Noise Complaints':     '#8b5cf6',
+  'Other':                '#94a3b8',
+};
+
+const ICON_MAP: Record<string, React.ReactNode> = {
+  AlertTriangle: <AlertTriangle className="w-5 h-5" />,
+  TrendingUp:    <TrendingUp    className="w-5 h-5" />,
+  MapPin:        <MapPin        className="w-5 h-5" />,
+};
+
+export default function DashboardOverview() {
+  const [stats, setStats]   = useState<StatsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    api.stats.get()
+      .then(setStats)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500" />
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="flex items-center justify-center h-64 text-red-400">
+        <AlertCircle className="mr-2 w-5 h-5" /> Failed to load dashboard data.
+      </div>
+    );
+  }
+
+  // Determine all category keys present in trend chart
+  const categoryKeys = stats.byCategory.map(c => c.category);
+
   return (
-    <div className="space-y-10">
-      {/* Header Section - Recipe 11 inspired bold layout */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-200">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="w-4 h-4 text-primary" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Live System Status</span>
+    <div className="space-y-6 p-4 md:p-6 max-w-full overflow-x-hidden">
+      {/* ── Stat Cards ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total complaints */}
+        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+          <p className="text-xs text-gray-400 mb-1">Total Complaints</p>
+          <div className="flex items-baseline justify-between lg:block">
+            <p className="text-2xl font-bold text-white">{stats.totalComplaints.toLocaleString()}</p>
+            <p className={`text-xs mt-1 ${stats.weeklyChange >= 0 ? 'text-red-400' : 'text-green-400'}`}>
+              {stats.weeklyChange >= 0 ? `+${stats.weeklyChange}%` : `${stats.weeklyChange}%`} this week
+            </p>
           </div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">City Intelligence</h1>
-          <p className="text-slate-500 mt-2 text-sm max-w-md leading-relaxed">
-            Real-time civic analytics engine processing public complaints and infrastructure data for Montgomery City.
-          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-500 flex items-center gap-2 uppercase tracking-wider">
-            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></div>
-            System Online
+
+        {/* Total analyzed */}
+        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+          <p className="text-xs text-gray-400 mb-1">AI Analyzed</p>
+          <div className="flex items-baseline justify-between lg:block">
+            <p className="text-2xl font-bold text-white">{stats.totalAnalyzed.toLocaleString()}</p>
+            <p className="text-xs mt-1 text-indigo-400">
+              {stats.totalComplaints > 0
+                ? `${Math.round((stats.totalAnalyzed / stats.totalComplaints) * 100)}% coverage`
+                : '0% coverage'}
+            </p>
           </div>
-          <button className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 flex items-center gap-2">
-            Generate Report <ArrowUpRight className="w-4 h-4" />
-          </button>
+        </div>
+
+        {/* High severity */}
+        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+          <p className="text-xs text-gray-400 mb-1">High Severity</p>
+          <div className="flex items-baseline justify-between lg:block">
+            <p className="text-2xl font-bold text-red-400">{stats.totalHigh.toLocaleString()}</p>
+            <p className="text-xs mt-1 text-gray-400">Require urgent action</p>
+          </div>
+        </div>
+
+        {/* This week */}
+        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+          <p className="text-xs text-gray-400 mb-1">This Week</p>
+          <div className="flex items-baseline justify-between lg:block">
+            <p className="text-2xl font-bold text-white">{stats.totalThisWeek.toLocaleString()}</p>
+            <p className="text-xs mt-1 flex gap-2">
+              <span className="text-red-400">{stats.recentSeverity.high}H</span>
+              <span className="text-yellow-400">{stats.recentSeverity.medium}M</span>
+              <span className="text-green-400">{stats.recentSeverity.low}L</span>
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Stats Grid - Recipe 1 inspired technical look */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-px bg-slate-200 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        {STATS.map((stat, idx) => (
-          <motion.div 
-            key={idx}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: idx * 0.05 }}
-            className="bg-white p-6 hover:bg-slate-50 transition-colors group"
-          >
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 group-hover:text-primary transition-colors">{stat.title}</p>
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-3xl font-mono font-medium text-slate-900 tracking-tighter">{stat.value}</h3>
-              <span className={cn(
-                "text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5",
-                stat.change.startsWith('+') ? "text-success" : 
-                stat.change === '0%' ? "text-slate-400" : "text-danger"
-              )}>
-                {stat.change}
-              </span>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Trend Chart - Recipe 1 inspired data grid */}
-        <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center shadow-sm">
-                <TrendingUp className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">Complaint Velocity</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">7-Day Rolling Average</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-all uppercase tracking-wider">Export Data</button>
-            </div>
-          </div>
-          <div className="p-8 h-[400px] w-full">
+      {/* ── Trend Chart ────────────────────────────────────── */}
+      <div className="bg-gray-800 rounded-xl p-4 md:p-5 border border-gray-700">
+        <h2 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-indigo-400" /> Complaint Trends
+        </h2>
+        {stats.trendChart.length > 0 ? (
+          <div className="h-[200px] sm:h-[240px] md:h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={TREND_DATA}>
+              <AreaChart data={stats.trendChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorRoads" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1E3A8A" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#1E3A8A" stopOpacity={0}/>
-                  </linearGradient>
+                  {categoryKeys.map(cat => (
+                    <linearGradient key={cat} id={`grad-${cat}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={CATEGORY_COLORS[cat] ?? '#94a3b8'} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={CATEGORY_COLORS[cat] ?? '#94a3b8'} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
-                  dy={10}
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} />
+                <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8 }}
+                  labelStyle={{ color: '#f9fafb' }}
                 />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    borderRadius: '12px', 
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                    fontSize: '12px',
-                    fontWeight: 'bold'
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="roads" 
-                  name="Road Infrastructure"
-                  stroke="#1E3A8A" 
-                  strokeWidth={3} 
-                  fillOpacity={1} 
-                  fill="url(#colorRoads)" 
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="waste" 
-                  name="Waste Management"
-                  stroke="#3B82F6" 
-                  strokeWidth={2} 
-                  strokeDasharray="5 5"
-                  fill="transparent"
-                />
+                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
+                {categoryKeys.map(cat => (
+                  <Area
+                    key={cat}
+                    type="monotone"
+                    dataKey={cat}
+                    stroke={CATEGORY_COLORS[cat] ?? '#94a3b8'}
+                    fill={`url(#grad-${cat})`}
+                    strokeWidth={2}
+                  />
+                ))}
               </AreaChart>
             </ResponsiveContainer>
           </div>
+        ) : (
+          <p className="text-gray-500 text-sm text-center py-10">No trend data available yet.</p>
+        )}
+      </div>
+
+      {/* ── Bottom Row ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* AI Insights */}
+        <div className="bg-gray-800 rounded-xl p-4 md:p-5 border border-gray-700">
+          <h2 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-green-400" /> AI Insights
+          </h2>
+          <div className="space-y-3">
+            {stats.aiInsights.map((insight, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-gray-700/50">
+                <span className="text-indigo-400 mt-0.5">{ICON_MAP[insight.icon] ?? <Activity className="w-5 h-5" />}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400 truncate">{insight.label}</p>
+                  <p className="text-sm font-medium text-white mt-0.5 truncate">{insight.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Sidebar Panels */}
-        <div className="lg:col-span-4 space-y-8">
-          {/* AI Insights - Recipe 3 inspired hardware look */}
-          <div className="bg-slate-900 rounded-2xl p-8 text-white shadow-2xl relative overflow-hidden border border-slate-800">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
-                    <Lightbulb className="w-5 h-5 text-primary" />
+        {/* Top Hotspots */}
+        <div className="bg-gray-800 rounded-xl p-4 md:p-5 border border-gray-700">
+          <h2 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-red-400" /> Top Hotspots
+          </h2>
+          {stats.hotspots.length > 0 ? (
+            <div className="space-y-2">
+              {stats.hotspots.slice(0, 5).map((h, i) => (
+                <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-700/50">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-5 h-5 shrink-0 rounded-full bg-indigo-500/20 text-indigo-400 text-xs flex items-center justify-center font-bold">
+                      {i + 1}
+                    </span>
+                    <span className="text-sm text-gray-200 truncate">{h.neighborhood}</span>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-sm tracking-tight">AI Intelligence</h3>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Predictive Engine</p>
-                  </div>
-                </div>
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-              </div>
-              
-              <div className="space-y-8">
-                {AI_INSIGHTS.map((insight, idx) => (
-                  <div key={idx} className="group cursor-pointer">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{insight.label}</p>
-                      <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-primary transition-colors" />
-                    </div>
-                    <p className="text-lg font-medium tracking-tight group-hover:text-primary transition-colors">{insight.value}</p>
-                    <div className="mt-3 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: idx === 0 ? '85%' : idx === 1 ? '65%' : '45%' }}
-                        className="h-full bg-primary"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* Grid Pattern Overlay */}
-            <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-          </div>
-
-          {/* Recent Activity - Recipe 1 inspired grid */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="font-bold text-slate-900 text-sm">Recent Activity</h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Feed</span>
-            </div>
-            <div className="divide-y divide-slate-100">
-              {MOCK_COMPLAINTS.slice(0, 4).map((complaint) => (
-                <div key={complaint.id} className="p-4 hover:bg-slate-50 transition-colors group cursor-pointer">
-                  <div className="flex items-start gap-4">
-                    <div className={cn(
-                      "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
-                      complaint.severity === 'High' ? "bg-danger shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                      complaint.severity === 'Medium' ? "bg-warning" : "bg-success"
-                    )}></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-mono font-bold text-slate-400">{complaint.id}</span>
-                        <span className="text-[10px] text-slate-400 font-medium">{complaint.timestamp}</span>
-                      </div>
-                      <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-primary transition-colors">
-                        {complaint.text}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <p className="text-[10px] text-slate-500 flex items-center gap-1 font-medium">
-                          <MapPin className="w-3 h-3" /> {complaint.location}
-                        </p>
-                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{complaint.category}</span>
-                      </div>
-                    </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <span className="text-sm font-semibold text-white">{h.total}</span>
+                    <span className="text-xs text-red-400 ml-1.5 hidden sm:inline">({h.high} high)</span>
                   </div>
                 </div>
               ))}
             </div>
-            <button className="w-full py-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] hover:bg-slate-50 hover:text-primary transition-all border-t border-slate-100">
-              View All Activity
-            </button>
-          </div>
+          ) : (
+            <p className="text-gray-500 text-sm text-center py-6">No hotspot data yet.</p>
+          )}
         </div>
       </div>
 
-      {/* Map Section - Full bleed feel */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-slate-900">Geospatial Distribution</h3>
-            <p className="text-xs text-slate-500 mt-1">AI-mapped complaint density and high-priority zones.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              <Layers className="w-3 h-3" />
-              Heatmap Overlay
-            </div>
-          </div>
-        </div>
-        <div className="h-[600px] w-full relative">
-          <HotspotMap />
-          {/* Overlay Stats on Map */}
-          <div className="absolute top-6 right-6 z-10 space-y-3">
-            <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl border border-slate-200 shadow-xl max-w-[200px]">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Hotspots</p>
-              <p className="text-2xl font-mono font-medium text-slate-900">12</p>
-              <div className="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-danger w-3/4"></div>
+      {/* ── Category Breakdown ─────────────────────────────── */}
+      <div className="bg-gray-800 rounded-xl p-4 md:p-5 border border-gray-700">
+        <h2 className="text-sm font-semibold text-gray-300 mb-4">Complaints by Category</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {stats.byCategory.map((cat, i) => {
+            const pct = cat.total > 0 ? Math.round((cat.high / cat.total) * 100) : 0;
+            const color = CATEGORY_COLORS[cat.category] ?? '#94a3b8';
+            return (
+              <div key={i} className="p-3 rounded-lg bg-gray-700/50 border border-gray-600/50">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                  <p className="text-xs text-gray-300 truncate">{cat.category}</p>
+                </div>
+                <p className="text-lg font-bold text-white">{Number(cat.total).toLocaleString()}</p>
+                <div className="mt-2 h-1 bg-gray-600 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-400 rounded-full" style={{ width: `${pct}%` }} />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{pct}% high severity</p>
               </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
-};
+}

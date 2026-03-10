@@ -5,6 +5,11 @@ import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
+
+  // In production, point to the deployed backend URL
+  // Set VITE_API_URL in your hosting platform env vars
+  const backendTarget = env.VITE_API_URL || "http://localhost:4000";
+
   return {
     plugins: [react(), tailwindcss()],
     define: {
@@ -18,13 +23,21 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         "/api": {
-          target: "http://localhost:4000",
+          target: backendTarget,
           changeOrigin: true,
+          // Helpful for debugging proxy issues:
+          configure: (proxy) => {
+            proxy.on("error", (err) => {
+              console.error("[vite proxy error]", err.message);
+            });
+          },
         },
       },
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== "true",
+    },
+    build: {
+      outDir: "dist",
+      sourcemap: true,
     },
   };
 });

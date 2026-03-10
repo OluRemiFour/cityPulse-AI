@@ -1,11 +1,20 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { LandingPage } from './pages/LandingPage';
-import { DashboardLayout } from './components/DashboardLayout';
-import { DashboardOverview } from './pages/DashboardOverview';
-import { ComplaintsTable } from './pages/ComplaintsTable';
-import { MapViewPage } from './pages/MapViewPage';
-import { AIInsightsPage } from './pages/AIInsightsPage';
-import { SettingsPage } from './pages/SettingsPage';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+
+// Original files use named exports
+import { LandingPage } from "./pages/LandingPage";
+import { DashboardLayout } from "./components/DashboardLayout";
+
+// New files (generated) use default exports
+import DashboardOverview from "./pages/DashboardOverview";
+import ComplaintsTable from "./pages/ComplaintsTable";
+import MapViewPage from "./pages/MapViewPage";
+import AIInsightsPage from "./pages/AIInsightsPage";
+import SettingsPage from "./pages/SettingsPage";
 
 export default function App() {
   return (
@@ -14,7 +23,7 @@ export default function App() {
         {/* Public Landing Page */}
         <Route path="/" element={<LandingPage />} />
 
-        {/* Protected Dashboard Routes */}
+        {/* Dashboard Routes */}
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<DashboardOverview />} />
           <Route path="/complaints" element={<ComplaintsTable />} />
