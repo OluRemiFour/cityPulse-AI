@@ -3,7 +3,9 @@
 // Typed API client — wraps all backend endpoints
 // ============================================================
 
-const BASE = '/api';
+const BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? '/api'
+  : 'https://city-pulse-backend-ojdv.onrender.com/api';
 
 // ── Types ────────────────────────────────────────────────────
 
